@@ -11,4 +11,4 @@ icannotfly's Rocket Flight Computer mk1
 - Log flight information to a graphable format.
 
 ## Hardware Required
-- [Adafruit Adalogger M0](https://www.adafruit.com/product/2795)
+- [Adafruit Feather 32u4 Adalogger](https://www.adafruit.com/product/2795)
