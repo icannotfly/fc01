@@ -46,8 +46,7 @@ void setup() {
     if (!baro.begin_I2C(DPS310_I2CADDR_DEFAULT))
     {
         Serial.println("FATAL: unable to initialize DPS310 on 0x77");
-        digitalWrite(PIN_RED_LED, HIGH);
-        while (1) {}; //die
+		HandleError(Error_BaroNotInitialized);
     }
     // configure
     baro.configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
@@ -60,15 +59,16 @@ void setup() {
     // initialize card
     if (!sd.begin(CHIP_SELECT, SPI_FULL_SPEED/* gotta go fast */))
     {
-        sd.initErrorHalt();
-        digitalWrite(PIN_RED_LED, HIGH);
+        //sd.initErrorHalt();
+		HandleError(Error_SdNotInitialized);
     }
 
 	char numfilePath[] = "lastnum";
 	Serial.print("Checking for numfile... ");
 	if (!numfile.open(numfilePath, O_CREAT | O_RDWR))	// must be RDWR to create a file, READ won't work
 	{
-		sd.errorHalt("unable to open or create numfile");
+		//sd.errorHalt("unable to open or create numfile");
+		HandleError(Error_SdCardNotUsable);
 	}
 
 
@@ -109,7 +109,8 @@ void setup() {
 
 	// write new number to numfile
 	if (!numfile.open(numfilePath, O_TRUNC | O_WRITE)) {	// opening as truc is the secret sauce
-		sd.errorHalt("unable to trunc open numfile");
+		//sd.errorHalt("unable to trunc open numfile");
+		HandleError(Error_SdCardNotUsable);
 	}
 	numfile.println(nextLogfileNum);
 	numfile.close();
@@ -117,7 +118,8 @@ void setup() {
 	// create logfile and write header to it
 	if (!logfile.open(logfilePath, O_CREAT | O_RDWR | O_AT_END))
 	{
-		sd.errorHalt("unable to open logfile");
+		//sd.errorHalt("unable to open logfile");
+		HandleError(Error_SdCardNotUsable);
 	}
 	logfile.print("time (ms),");
 	logfile.print("temperature (C),");
@@ -163,7 +165,8 @@ void loop() {
 		// write to logfile
 		if (!logfile.open(logfilePath, O_WRITE | O_AT_END | O_APPEND))
 		{
-			sd.errorHalt("unable to open logfile for logging");
+			//sd.errorHalt("unable to open logfile for logging");
+			HandleError(Error_SdCardNotUsable); // this is Very Bad during flight, and we should have a different way of handling this later on (write to a ram buffer, then dump if card gets plugged back in? //TODO)
 		}
 
 		#define COMMA logfile.print(",")
@@ -181,4 +184,26 @@ void loop() {
 
 
     delay(250);
+}
+
+
+
+void HandleError(ErrorCode e)
+{
+	if (e == Error_NoError)
+	{
+		return;
+	}
+
+	while (1)
+	{
+		for (int i = 0; i < int(e); i++)
+		{
+			digitalWrite(PIN_RED_LED, HIGH);
+			delay(ERROR_BLINK_PULSE_TIME);
+			digitalWrite(PIN_RED_LED, LOW);
+			delay(ERROR_BLINK_PULSE_TIME);
+		}
+		delay(ERROR_BLINK_PAUSE_TIME);
+	}
 }
