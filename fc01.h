@@ -12,8 +12,8 @@
 
 
 // versioning
-#define VERSION "0.0.0"
-#define BUILD "0"
+#define VERSION "0.1.0"
+#define BUILD "9"
 
 
 
