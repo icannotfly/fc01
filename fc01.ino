@@ -10,12 +10,22 @@
 #include <Wire.h>
 #include "fc01.h"
 #include <Adafruit_DPS310.h>    // barometer
+#include <SdFat.h>              // sd card
 
 
 
+//// globals
+// barometer
+Adafruit_DPS310 baro;       // barometer itself
 
-// globals
-Adafruit_DPS310 baro;     // barometer
+// sd card
+SdFat sd;
+#define CHIP_SELECT 4
+SdFile numfile;             // contains the sequential id number of the last file used
+
+// logging
+SdFile logfile;
+char logfilePath[13] = "";	// max filename length (8) + . + ext + null terminator = 8+1+3+1 = 13
 
 
 
@@ -23,7 +33,15 @@ void setup() {
     Serial.println("Starting up...");
 
 
-    //    barometer
+
+	//// lights
+	pinMode(PIN_RED_LED, OUTPUT);
+	pinMode(PIN_GREEN_LED, OUTPUT);
+	//// /lights
+
+
+
+    //// barometer
     // initialize
     if (!baro.begin_I2C(DPS310_I2CADDR_DEFAULT))
     {
@@ -34,7 +52,83 @@ void setup() {
     // configure
     baro.configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
     baro.configureTemperature(DPS310_64HZ, DPS310_64SAMPLES);
-    //    barometer
+    //// /barometer
+
+
+
+    //// sd card
+    // initialize card
+    if (!sd.begin(CHIP_SELECT, SPI_FULL_SPEED/* gotta go fast */))
+    {
+        sd.initErrorHalt();
+        digitalWrite(PIN_RED_LED, HIGH);
+    }
+
+	char numfilePath[] = "lastnum";
+	Serial.print("Checking for numfile... ");
+	if (!numfile.open(numfilePath, O_CREAT | O_RDWR))	// must be RDWR to create a file, READ won't work
+	{
+		sd.errorHalt("unable to open or create numfile");
+	}
+
+
+
+	// set up the logfile
+	// first, determine what we should number this logfile by looking inside numfile
+	char line[MAX_NUMFILE_LINE_LENGTH]; // line that was read in
+	long nextLogfileNum = 0;	// next number in sequence
+
+	// we're only expecting one line, so just read the first one
+	numfile.fgets(line, sizeof(line), "\n");
+
+	// done reading, close the file
+	numfile.close();
+
+	// was there anything in the file?
+	if (strlen(line) > 0)
+	{
+		// yes
+		// chop up line via a token (\n)
+		char* token = strtok(line, "\n");
+
+		// then convert that token to a long
+		nextLogfileNum = atol(line);
+	}
+	else
+	{
+		Serial.print("no numfile exists, will create... ");
+		//num is already set to 0 so we eill just write that later
+	}
+
+	Serial.print("done!\n");
+
+	// now put it all together
+	nextLogfileNum++;
+	sprintf(logfilePath, "%08ld.csv", nextLogfileNum);
+	Serial.print("Next logfile will be "); Serial.print(logfilePath); Serial.print("\n");
+
+	// write new number to numfile
+	if (!numfile.open(numfilePath, O_TRUNC | O_WRITE)) {	// opening as truc is the secret sauce
+		sd.errorHalt("unable to trunc open numfile");
+	}
+	numfile.println(nextLogfileNum);
+	numfile.close();
+
+	// create logfile and write header to it
+	if (!logfile.open(logfilePath, O_CREAT | O_RDWR | O_AT_END))
+	{
+		sd.errorHalt("unable to open logfile");
+	}
+	logfile.print("time (ms),");
+	logfile.print("temperature (C),");
+	logfile.print("pressure (pa),");
+	logfile.print("altitude (m),");
+	logfile.print("\n");
+	logfile.close();
+
+	// adios
+	Serial.print("\n");
+    //// /sd card
 
 
 
@@ -50,24 +144,41 @@ void loop() {
 
     if (baro.pressureAvailable())
     {
-        digitalWrite(PIN_RED_LED, HIGH);
+		digitalWrite(PIN_GREEN_LED, HIGH);
 
         sensors_event_t temperatureEvent;
         sensors_event_t pressureEvent;
         baro.getEvents(&temperatureEvent, &pressureEvent);
+		float altitude = (pow((SEA_LEVEL_PRESSURE / pressureEvent.pressure), 0.190223) - 1.0) * (temperatureEvent.temperature + 273.15) / 0.0065;
 
         Serial.print(temperatureEvent.temperature);
         Serial.print("\t");
         Serial.print(pressureEvent.pressure);
         Serial.print("\t");
-#define SEA_LEVEL_PRESSURE 1013.25
-        Serial.print((pow((SEA_LEVEL_PRESSURE / pressureEvent.pressure), 0.190223) - 1.0)* (temperatureEvent.temperature + 273.15) / 0.0065);
+        Serial.print(altitude);
         Serial.print('\n');
 
-        digitalWrite(PIN_RED_LED, LOW);
+
+
+		// write to logfile
+		if (!logfile.open(logfilePath, O_WRITE | O_AT_END | O_APPEND))
+		{
+			sd.errorHalt("unable to open logfile for logging");
+		}
+
+		#define COMMA logfile.print(",")
+		logfile.print(millis()); COMMA;
+		logfile.print(temperatureEvent.temperature); COMMA;
+		logfile.print(pressureEvent.pressure); COMMA;
+		logfile.print(altitude); COMMA;
+		logfile.print("\n");
+
+		logfile.close();
+
+		digitalWrite(PIN_GREEN_LED, LOW);
     }
 
 
 
-    delay(500);
+    delay(250);
 }

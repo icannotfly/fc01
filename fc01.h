@@ -12,14 +12,16 @@
 
 
 // versioning
-#define VERSION "0.1.1"
-#define BUILD "11"
-
-
+#define VERSION "0.2.0"
+#define BUILD "18"
 
 // onboard LEDs
 #define PIN_GREEN_LED 8
 #define PIN_RED_LED 13
+
+// constants
+#define SEA_LEVEL_PRESSURE 1013.25	// in mbar
+#define MAX_NUMFILE_LINE_LENGTH 20	// max number of digits to read in from numfile
 
 
 
