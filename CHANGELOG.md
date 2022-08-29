@@ -20,3 +20,10 @@
 ### Added
 - Support for logging data to the onboard SD card.
 - Green LED comes on when the logger is running.
+
+
+
+## 0.3.0 - 2022-08-29
+
+### Added
+- Error handling
