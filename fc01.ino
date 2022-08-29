@@ -8,9 +8,9 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include "fc01.h"
 #include <Adafruit_DPS310.h>    // barometer
 
-#include "fc01.h"
 
 
 
@@ -20,7 +20,7 @@ Adafruit_DPS310 baro;     // barometer
 
 
 void setup() {
-    Serial.print("Starting up...");
+    Serial.println("Starting up...");
 
 
     //    barometer
@@ -28,7 +28,8 @@ void setup() {
     if (!baro.begin_I2C(DPS310_I2CADDR_DEFAULT))
     {
         Serial.println("FATAL: unable to initialize DPS310 on 0x77");
-        return; //die
+        digitalWrite(PIN_RED_LED, HIGH);
+        while (1) {}; //die
     }
     // configure
     baro.configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
@@ -37,7 +38,7 @@ void setup() {
 
 
 
-    Serial.print("Done. Ready!");
+    Serial.println("Done. Ready!");
 }
 
 
