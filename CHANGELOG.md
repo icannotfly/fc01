@@ -26,4 +26,9 @@
 ## 0.3.0 - 2022-08-29
 
 ### Added
-- Error handling
+- Error handling.
+
+
+
+## 1.0.0 - 2022-09-01
+Feature complete.
